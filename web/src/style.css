@@ -97,6 +97,14 @@ html, body {
 .kv.mono { font-family: ui-monospace, monospace; font-size: 11px; }
 .hint { color: #64748b; margin: 6px 0; }
 .error { color: #fca5a5; margin-bottom: 8px; }
+.warn {
+  background: #422006;
+  border: 1px solid #facc15;
+  color: #fde68a;
+  border-radius: 5px;
+  padding: 5px 7px;
+  margin: 6px 0;
+}
 .notice {
   background: #1e2a3a;
   border: 1px solid #38455a;

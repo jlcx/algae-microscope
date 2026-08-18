@@ -11,6 +11,7 @@ import { Panel } from './panel.ts';
 import { COLORS, drawScene, nodeRadius } from './render.ts';
 import type { ViewMode } from './viewmode.ts';
 import type { NEdge } from './types.ts';
+import { DEFAULT_POLICY, selectAnchor, withPriority } from './temporal/index.ts';
 
 const state = new AppState();
 const canvas = document.getElementById('stage') as HTMLCanvasElement;
@@ -163,6 +164,17 @@ canvas.addEventListener('pointermove', e => {
     const node = state.nodes.get(nodeId)!;
     const lines = [`${node.label} (${nodeId})`];
     if (node.wp_count != null) lines.push(`wp_count ${node.wp_count}`);
+    if (state.view === 'temporal' && node.dates.length) {
+      const policy = withPriority(DEFAULT_POLICY,
+        state.clientConfig?.temporal.anchor_priority ?? []);
+      const anchor = selectAnchor(node.dates, policy);
+      if (anchor?.conflict) {
+        lines.push(`⚠ conflicting ${anchor.property} values in Wikidata`);
+      }
+      if (anchor?.kind === 'end') {
+        lines.push('positioned at its end date (no start date known)');
+      }
+    }
     hover = { x, y, text: lines };
     canvas.style.cursor = 'pointer';
     return;

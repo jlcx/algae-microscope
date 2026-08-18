@@ -4,6 +4,7 @@
 import type { AppState } from './state.ts';
 import type { NEdge } from './types.ts';
 import { CATEGORY_COLORS } from './render.ts';
+import { DEFAULT_POLICY, selectAnchor, withPriority } from './temporal/index.ts';
 
 export interface PanelActions {
   expand(qid: string): void;
@@ -136,6 +137,19 @@ export class Panel {
     root.appendChild(actions);
 
     if (node.dates.length) {
+      const policy = withPriority(DEFAULT_POLICY,
+        this.state.clientConfig?.temporal.anchor_priority ?? []);
+      const anchor = selectAnchor(node.dates, policy);
+      if (anchor) {
+        root.appendChild(el('div', 'kv dim',
+          `temporal anchor: ${anchor.property}`
+          + (anchor.kind === 'end' ? ' (end-anchored ‹)' : '')));
+        if (anchor.conflict) {
+          root.appendChild(el('div', 'warn',
+            `⚠ Wikidata has conflicting ${anchor.property} values at the `
+            + 'same precision — the timeline position uses one of them'));
+        }
+      }
       root.appendChild(el('h4', '', 'date claims'));
       const list = el('div', 'dates');
       for (const d of node.dates) {
