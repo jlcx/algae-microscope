@@ -179,6 +179,12 @@ canvas.addEventListener('pointermove', e => {
     canvas.style.cursor = 'pointer';
     return;
   }
+  const viewTip = activeView().tooltipAt?.(x, y);
+  if (viewTip) {
+    hover = { x, y, text: viewTip };
+    canvas.style.cursor = 'help';
+    return;
+  }
   const edge = hitEdge(x, y);
   if (edge) {
     const lines: string[] = [];

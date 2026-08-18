@@ -7,8 +7,10 @@ import type { ViewMode } from './viewmode.ts';
 import type { RenderStyle } from './render.ts';
 import { COLORS } from './render.ts';
 import {
-  DEFAULT_POLICY, TimeScale, layoutTemporal, precisionExtent, withPriority,
+  DEFAULT_POLICY, TimeScale, formatYear, layoutTemporal, precisionExtent,
+  withPriority,
 } from './temporal/index.ts';
+import { propLabel } from './proplabels.ts';
 import type {
   AnchorPolicy, PositionedEntity, TemporalEdge, TemporalLayout,
 } from './temporal/index.ts';
@@ -24,6 +26,7 @@ export class TemporalView implements ViewMode {
   private scrollY = 0;
   private dirty = true;
   private lastW = 800;
+  private tickHits: { x: number; y: number; lines: string[] }[] = [];
 
   constructor(private state: AppState) {
     state.addEventListener('change', () => { this.dirty = true; });
@@ -119,6 +122,7 @@ export class TemporalView implements ViewMode {
   drawUnder(ctx: CanvasRenderingContext2D, width: number,
             height: number): void {
     if (this.dirty || !this.layout) this.relayout(width);
+    this.tickHits = [];
     const scale = this.scale;
 
     // margin dock (§5.2.3 margin placement)
@@ -199,6 +203,23 @@ export class TemporalView implements ViewMode {
             ctx.moveTo(x, y - 10);
             ctx.lineTo(x, y - 4);
             ctx.stroke();
+
+            const node = this.state.nodes.get(entity.id);
+            const when = formatYear(event.year, event.spanYears);
+            const lines = [
+              `${node?.label ?? entity.id}: `
+              + `${propLabel(event.property)} · ${when}`,
+            ];
+            if (event.sourceProperty) {
+              const target = event.sourceTarget
+                ? (this.state.nodes.get(event.sourceTarget)?.label
+                   ?? event.sourceTarget) : '';
+              const parent = propLabel(event.sourceProperty,
+                                       this.state.clientConfig?.cg_rels);
+              lines.push(`dates the claim ${parent}`
+                + (target ? ` → ${target}` : ''));
+            }
+            this.tickHits.push({ x, y: y - 7, lines });
           }
         }
       } else if (entity.inferred) {
@@ -218,6 +239,41 @@ export class TemporalView implements ViewMode {
         ctx.font = '11px system-ui';
       }
     }
+
+    if (this.state.showAllEvents) {
+      // tick legend; each tick also explains itself on hover
+      const entries: [string, string][] = [
+        ['#f87171', 'end date'],
+        ['#c084fc', 'date on a claim'],
+        ['#94a3b8', 'other dated claim'],
+      ];
+      let x = scale.rangeMin;
+      const y = height - 12;
+      ctx.font = '11px system-ui';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      for (const [color, text] of entries) {
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1.5;
+        ctx.beginPath();
+        ctx.moveTo(x, y - 4);
+        ctx.lineTo(x, y + 4);
+        ctx.stroke();
+        ctx.fillStyle = COLORS.labelDim;
+        ctx.fillText(text, x + 6, y);
+        x += ctx.measureText(text).width + 26;
+      }
+      ctx.textAlign = 'center';
+    }
+  }
+
+  tooltipAt(x: number, y: number): string[] | null {
+    for (const tick of this.tickHits) {
+      if (Math.abs(tick.x - x) <= 4 && Math.abs(tick.y - y) <= 7) {
+        return tick.lines;
+      }
+    }
+    return null;
   }
 
   drawOver(ctx: CanvasRenderingContext2D): void {

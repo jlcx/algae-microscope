@@ -12,6 +12,9 @@ export interface ViewMode {
   targets(width: number, height: number): Map<string, Position>;
   drawUnder(ctx: CanvasRenderingContext2D, width: number, height: number): void;
   drawOver(ctx: CanvasRenderingContext2D, width: number, height: number): void;
+  /** View-specific hover target (e.g. temporal event ticks): tooltip lines
+   * for the decoration under the cursor, or null. */
+  tooltipAt?(x: number, y: number): string[] | null;
   renderStyle(): RenderStyle;
   onWheel(e: WheelEvent, x: number, y: number): void;
   /** Returns true if the view claims the drag (e.g. node drag in graph). */
