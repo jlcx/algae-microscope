@@ -1,0 +1,36 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "algae-microscope"
+version = "0.1.0"
+description = "Interactive explorer for neighborhoods of the ALGAE graph, with graph and temporal views"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+# The base install is dependency-free: the CLI and the API-only backend use
+# only the standard library. Extras pull in what each deployment needs.
+dependencies = []
+
+[project.optional-dependencies]
+postgres = ["psycopg[binary]>=3.1"]
+server = ["fastapi>=0.100", "uvicorn>=0.23"]
+dev = ["pytest>=7", "httpx>=0.24", "fastapi>=0.100", "uvicorn>=0.23",
+       "psycopg[binary]>=3.1"]
+
+[project.scripts]
+algae-microscope = "cli.main:main"
+algae-microscope-server = "server.api.serve:main"
+
+[tool.setuptools]
+packages = [
+    "server",
+    "server.backends",
+    "server.neighborhood",
+    "server.api",
+    "cli",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

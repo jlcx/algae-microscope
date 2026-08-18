@@ -1,0 +1,31 @@
+# algae-microscope configuration (SPEC.md §8).
+# Copy to config.toml (or point at it with $ALGAE_MICROSCOPE_CONFIG / --config).
+
+[backend]
+mode = "postgres"            # or "api"
+dsn  = "postgresql:///algae" # postgres mode
+
+[expansion]
+default_hops = 1
+max_hops = 3
+default_budget = 100
+edge_limit = 5000            # server-side cap per frontier query, per edge kind
+
+[witnesses]
+clone_families = [["ceb", "war", "sv", "vi"]]   # Lsjbot cluster
+family_cap = 1
+# Per-language scalar weights (generalization of family caps); unlisted = 1.0.
+# [witnesses.weights]
+# ceb = 0.1
+
+[temporal]
+anchor_priority = ["P571", "P569", "P580", "P577"]   # prepended to starts default order
+undated = "margin"           # or "infer"
+
+[api_backend]
+cache_dir = "~/.cache/algae-microscope"
+user_agent = "algae-microscope/0.1 (contact: jamie.day.cox@gmail.com)"
+cache_ttl_seconds = 86400
+min_request_interval = 0.25
+sparql_inbound = false       # inbound typed edges via SPARQL (bounded, optional)
+sparql_limit = 200
