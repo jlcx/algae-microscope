@@ -5,6 +5,7 @@
 
 import { api } from './api.ts';
 import type { AppState } from './state.ts';
+import type { SearchHit } from './types.ts';
 
 export interface ControlActions {
   load(): void;
@@ -30,10 +31,13 @@ function labeled(text: string, child: HTMLElement): HTMLElement {
 
 export class Controls {
   private seedInput = make('input', {
-    list: 'seed-hits', placeholder: 'seeds: Q42, Douglas Adams, …',
-    class: 'seeds',
+    placeholder: 'seeds: Q42, Douglas Adams, …',
+    class: 'seeds', autocomplete: 'off', spellcheck: 'false',
   });
-  private datalist = make('datalist', { id: 'seed-hits' });
+  private suggestBox = make('div', { class: 'suggest' });
+  private hits: SearchHit[] = [];
+  private highlight = -1;
+  private searchSeq = 0;
   private status = make('span', { class: 'status' });
 
   constructor(
@@ -56,24 +60,42 @@ export class Controls {
     this.seedInput.addEventListener('input', () => {
       window.clearTimeout(debounce);
       const raw = this.seedInput.value.split(',').pop()?.trim() ?? '';
-      if (raw.length < 2 || /^Q\d*$/.test(raw)) return;
-      debounce = window.setTimeout(async () => {
-        try {
-          const hits = await api.search(raw);
-          this.datalist.textContent = '';
-          for (const hit of hits) {
-            const opt = make('option', { value: hit.label });
-            opt.label = `${hit.qid} ${hit.description}`;
-            this.datalist.appendChild(opt);
-          }
-        } catch { /* search is best-effort */ }
-      }, 250);
+      if (raw.length < 2 || /^Q\d*$/i.test(raw)) {
+        this.closeSuggest();
+        return;
+      }
+      debounce = window.setTimeout(() => this.fetchSuggestions(raw), 200);
     });
     this.seedInput.addEventListener('keydown', e => {
+      if (this.hits.length && this.suggestBox.childElementCount) {
+        if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+          e.preventDefault();
+          const step = e.key === 'ArrowDown' ? 1 : -1;
+          this.highlight = (this.highlight + step + this.hits.length)
+            % this.hits.length;
+          this.renderSuggestions();
+          return;
+        }
+        if (e.key === 'Escape') {
+          this.closeSuggest();
+          return;
+        }
+        if (e.key === 'Enter' && this.highlight >= 0) {
+          e.preventDefault();
+          this.pickSuggestion(this.hits[this.highlight]);
+          return;
+        }
+      }
       if (e.key === 'Enter') this.submit();
     });
-    root.appendChild(this.seedInput);
-    root.appendChild(this.datalist);
+    this.seedInput.addEventListener('blur', () => {
+      // delay so a mousedown on a suggestion row still lands
+      window.setTimeout(() => this.closeSuggest(), 150);
+    });
+    const seedWrap = make('span', { class: 'seedwrap' });
+    seedWrap.appendChild(this.seedInput);
+    seedWrap.appendChild(this.suggestBox);
+    root.appendChild(seedWrap);
 
     const hops = make('input', { type: 'number', min: '1', max: '3', class: 'num' });
     hops.value = String(s.hops);
@@ -189,6 +211,69 @@ export class Controls {
 
     row2.appendChild(this.status);
     root.appendChild(row2);
+  }
+
+  private async fetchSuggestions(query: string): Promise<void> {
+    const seq = ++this.searchSeq;
+    try {
+      const hits = await api.search(query);
+      if (seq !== this.searchSeq) return; // a newer keystroke superseded us
+      this.hits = hits;
+      this.highlight = hits.length ? 0 : -1;
+      this.renderSuggestions();
+    } catch (err) {
+      if (seq !== this.searchSeq) return;
+      this.hits = [];
+      this.highlight = -1;
+      this.suggestBox.textContent = '';
+      const row = make('div', { class: 'suggest-row disabled' },
+        String(err instanceof Error ? err.message : err));
+      this.suggestBox.appendChild(row);
+      this.suggestBox.classList.add('open');
+    }
+  }
+
+  private renderSuggestions(): void {
+    this.suggestBox.textContent = '';
+    if (!this.hits.length) {
+      this.suggestBox.classList.remove('open');
+      return;
+    }
+    this.hits.forEach((hit, index) => {
+      const row = make('div', {
+        class: 'suggest-row' + (index === this.highlight ? ' hl' : ''),
+      });
+      row.appendChild(make('span', { class: 's-label' }, hit.label));
+      row.appendChild(make('span', { class: 's-qid' }, hit.qid));
+      if (hit.description) {
+        row.appendChild(make('span', { class: 's-desc' }, hit.description));
+      }
+      // mousedown fires before the input's blur handler closes the box
+      row.addEventListener('mousedown', e => {
+        e.preventDefault();
+        this.pickSuggestion(hit);
+      });
+      this.suggestBox.appendChild(row);
+    });
+    this.suggestBox.classList.add('open');
+  }
+
+  private pickSuggestion(hit: SearchHit): void {
+    // replace the segment being typed with the exact QID (labels are
+    // ambiguous; the chosen entity should not depend on server tie-breaks)
+    const parts = this.seedInput.value.split(',').map(part => part.trim());
+    parts[parts.length - 1] = hit.qid;
+    this.seedInput.value = parts.filter(Boolean).join(', ');
+    this.seedInput.title = this.seedInput.value;
+    this.closeSuggest();
+    this.seedInput.focus();
+  }
+
+  private closeSuggest(): void {
+    this.hits = [];
+    this.highlight = -1;
+    this.suggestBox.textContent = '';
+    this.suggestBox.classList.remove('open');
   }
 
   private submit(): void {

@@ -43,8 +43,8 @@ class PostgresBackend(Backend):
     SEARCH_TIMEOUT_MS = 5000
     SEARCH_INDEX_HINT = (
         "label search timed out — the database is missing the supporting "
-        "index; create it with: CREATE INDEX idx_wd_entities_label ON "
-        "wd_entities (best_label text_pattern_ops)")
+        "index; create it with: CREATE INDEX idx_wd_entities_label_lower ON "
+        "wd_entities (lower(best_label) text_pattern_ops)")
 
     def __init__(self, config):
         try:
@@ -357,14 +357,15 @@ class PostgresBackend(Backend):
                     conn.cursor() as cur:
                 cur.execute(
                     f"SET LOCAL statement_timeout = {int(self.SEARCH_TIMEOUT_MS)}")
-                # Case-sensitive prefix match (LIKE can use the
-                # text_pattern_ops index, ILIKE cannot); exact match first,
-                # ties broken toward well-covered entities.
+                # Case-insensitive prefix match served by the
+                # lower(best_label) text_pattern_ops index (LIKE on the
+                # indexed expression; ILIKE could not use it); exact match
+                # first, ties broken toward well-covered entities.
                 cur.execute(r"""
                     SELECT qid, best_label, wp_count,
-                           (best_label = %(t)s) AS exact
+                           (lower(best_label) = lower(%(t)s)) AS exact
                     FROM ms_entities
-                    WHERE best_label LIKE %(prefix)s
+                    WHERE lower(best_label) LIKE lower(%(prefix)s)
                     ORDER BY exact DESC, wp_count DESC NULLS LAST
                     LIMIT %(limit)s
                 """, {"t": text,
@@ -375,5 +376,5 @@ class PostgresBackend(Backend):
         except self._psycopg.errors.QueryCanceled as e:
             raise BackendError(self.SEARCH_INDEX_HINT) from e
         return [SearchResult(qid=qid, label=label,
-                             description=f"wp_count={wp}")
+                             description=f"{wp or 0} Wikipedia editions")
                 for qid, label, wp, _exact in rows]

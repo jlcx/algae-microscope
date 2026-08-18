@@ -34,7 +34,44 @@ html, body {
   font: inherit;
 }
 
-#toolbar input.seeds { flex: 1 1 240px; min-width: 180px; }
+.seedwrap { position: relative; flex: 1 1 240px; min-width: 180px; display: flex; }
+#toolbar input.seeds { width: 100%; }
+
+.suggest {
+  display: none;
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  background: #1e252f;
+  border: 1px solid #38455a;
+  border-radius: 0 0 6px 6px;
+  max-height: 320px;
+  overflow-y: auto;
+  box-shadow: 0 6px 16px rgba(0,0,0,0.4);
+}
+.suggest.open { display: block; }
+.suggest-row {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 5px 9px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+.suggest-row.hl, .suggest-row:hover { background: #0c4a6e; }
+.suggest-row.disabled { cursor: default; color: #fca5a5; white-space: normal; }
+.suggest-row.disabled:hover { background: inherit; }
+.s-label { font-weight: 600; }
+.s-qid { color: #7dd3fc; font-family: ui-monospace, monospace; font-size: 11px; }
+.s-desc {
+  color: #94a3b8;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 12px;
+}
 #toolbar input.num { width: 52px; }
 #toolbar input.num.wide { width: 64px; }
 #toolbar input.lang { width: 70px; }

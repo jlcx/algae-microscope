@@ -43,10 +43,10 @@ SELECT id AS lang_id, code AS lang_code FROM languages;
 -- Recommended supporting indexes. Not created here — index DDL on 10^8-10^9
 -- row tables is the DBA's call and the builds take a while.
 --
--- Interactive label search (§3.1); microscope's search fails fast with a
--- hint when it is absent:
---   CREATE INDEX idx_wd_entities_label
---       ON wd_entities (best_label text_pattern_ops);
+-- Interactive label search (§3.1), case-insensitive; microscope's search
+-- fails fast with a hint when it is absent:
+--   CREATE INDEX idx_wd_entities_label_lower
+--       ON wd_entities (lower(best_label) text_pattern_ops);
 --
 -- Multi-hop expansion through hub entities (§3.2): fetching a hub's
 -- consensus edges ordered by strength currently bitmap-scans all of them
