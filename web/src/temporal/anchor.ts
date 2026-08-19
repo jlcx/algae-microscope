@@ -117,6 +117,7 @@ export function secondaryEvents(
     events.push({
       property: claim.property, year, precision: claim.precision,
       spanYears: precisionSpanYears(claim.precision),
+      timeValue: claim.time_value,
       sourceProperty: claim.source_property || undefined,
       sourceTarget: claim.source_target || undefined,
       kind,

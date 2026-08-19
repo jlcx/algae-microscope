@@ -53,6 +53,8 @@ export interface EventTick {
   year: number;
   precision: number;
   spanYears: number;
+  /** Original Wikidata time string, for precision-faithful display. */
+  timeValue?: string;
   sourceProperty?: string;
   sourceTarget?: string;
   kind: 'start' | 'end' | 'nested' | 'other';

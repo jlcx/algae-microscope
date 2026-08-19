@@ -4,7 +4,10 @@
 import type { AppState } from './state.ts';
 import type { NEdge } from './types.ts';
 import { CATEGORY_COLORS } from './render.ts';
-import { DEFAULT_POLICY, selectAnchor, withPriority } from './temporal/index.ts';
+import {
+  DEFAULT_POLICY, formatDateValue, selectAnchor, withPriority,
+} from './temporal/index.ts';
+import { propLabel } from './proplabels.ts';
 
 export interface PanelActions {
   expand(qid: string): void;
@@ -152,11 +155,16 @@ export class Panel {
       }
       root.appendChild(el('h4', '', 'date claims'));
       const list = el('div', 'dates');
+      const rels = this.state.clientConfig?.cg_rels;
       for (const d of node.dates) {
         const nested = d.source_property
-          ? ` (on ${d.source_property} → ${this.label(d.source_target)})` : '';
-        list.appendChild(el('div', 'kv mono',
-          `${d.property} ${d.time_value} p${d.precision}${nested}`));
+          ? ` (on ${propLabel(d.source_property, rels)} → ${this.label(d.source_target)})`
+          : '';
+        const row = el('div', 'kv mono',
+          `${propLabel(d.property)}: `
+          + `${formatDateValue(d.time_value, d.precision)}${nested}`);
+        row.title = `${d.time_value} precision ${d.precision}`;
+        list.appendChild(row);
       }
       root.appendChild(list);
     }

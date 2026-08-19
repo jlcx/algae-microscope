@@ -7,8 +7,8 @@ import type { ViewMode } from './viewmode.ts';
 import type { RenderStyle } from './render.ts';
 import { COLORS } from './render.ts';
 import {
-  DEFAULT_POLICY, TimeScale, formatYear, layoutTemporal, precisionExtent,
-  withPriority,
+  DEFAULT_POLICY, TimeScale, formatDateValue, formatYear, layoutTemporal,
+  precisionExtent, withPriority,
 } from './temporal/index.ts';
 import { propLabel } from './proplabels.ts';
 import type {
@@ -205,7 +205,9 @@ export class TemporalView implements ViewMode {
             ctx.stroke();
 
             const node = this.state.nodes.get(entity.id);
-            const when = formatYear(event.year, event.spanYears);
+            const when = event.timeValue
+              ? formatDateValue(event.timeValue, event.precision)
+              : formatYear(event.year, event.spanYears);
             const lines = [
               `${node?.label ?? entity.id}: `
               + `${propLabel(event.property)} · ${when}`,

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import re
 from xml.sax.saxutils import escape, quoteattr
 
 from server.constants import CG_RELS, ENDS, OTHERS, STARTS_DEFAULT_ORDER
@@ -10,6 +11,43 @@ from server.neighborhood.model import Neighborhood
 
 # §5.2.1 anchor policy order, used for the one-line date shown per node.
 _ANCHOR_ORDER = STARTS_DEFAULT_ORDER + sorted(OTHERS) + sorted(ENDS)
+
+
+_TIME_RE = re.compile(r'^([+-]\d+)-(\d\d)-(\d\d)T')
+
+
+def _ordinal(n: int) -> str:
+    if 11 <= n % 100 <= 13:
+        return f"{n}th"
+    return f"{n}{ {1: 'st', 2: 'nd', 3: 'rd'}.get(n % 10, 'th') }"
+
+
+def format_date_value(time_value: str, precision: int) -> str:
+    """Precision-faithful date rendering (mirrors web formatDateValue):
+    p11 → 2009-11-13, p10 → 2009-11, p9 → 1952 / 44 BCE, p8 → 1950s,
+    p7 → 19th century, coarser → raw."""
+    match = _TIME_RE.match(time_value)
+    if not match:
+        return time_value
+    year = int(match.group(1))
+    year_label = f"{year:04d}" if year > 0 else str(year)
+    if precision >= 11:
+        return f"{year_label}-{match.group(2)}-{match.group(3)}"
+    if precision == 10:
+        return f"{year_label}-{match.group(2)}"
+    if precision == 9:
+        return f"{1 - year} BCE" if year <= 0 else str(year)
+    if precision == 8:
+        return f"{(year // 10) * 10}s"
+    if precision == 7:
+        if year > 0:
+            return f"{_ordinal((year - 1) // 100 + 1)} century"
+        return f"{_ordinal(-year // 100 + 1)} century BCE"
+    if precision == 6:
+        if year > 0:
+            return f"{_ordinal((year - 1) // 1000 + 1)} millennium"
+        return f"{_ordinal(-year // 1000 + 1)} millennium BCE"
+    return time_value
 
 
 def _anchor_date(dates):
@@ -45,7 +83,8 @@ def to_text(neighborhood: Neighborhood, max_witness_langs: int = 12) -> str:
             dated = ""
             anchor = _anchor_date(node.dates)
             if anchor:
-                dated = f" [{anchor.property} {anchor.time_value}]"
+                dated = (f" [{anchor.property} "
+                         f"{format_date_value(anchor.time_value, anchor.precision)}]")
             lines.append(f"  {node.qid}  {node.label}{wp}{dated}")
 
     consensus = [e for e in neighborhood.edges.values() if e.kind == "consensus"]

@@ -98,12 +98,62 @@ export function formatYear(year: number, unitSpan: number): string {
   const whole = Math.round(year);
   if (whole <= 0 && unitSpan >= 1) return `${1 - whole} BCE`;
   if (unitSpan >= 1) return `${whole}`;
-  // sub-year: month labels
+  // sub-year: ISO-style labels. Invert the year-fraction encoding used by
+  // parseTimeValue: (month-1)/12 dominates and the day term stays below
+  // 1/12, so the month floor is exact and the remainder recovers the day.
   const y = Math.floor(year);
-  const monthIndex = Math.min(11, Math.floor((year - y) * 12));
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-                  'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  if (unitSpan >= 1 / 12) return `${months[monthIndex]} ${y <= 0 ? `${1 - y} BCE` : y}`;
-  const dayOfYear = Math.floor((year - y) * DAYS_IN_YEAR);
-  return `${months[monthIndex]} d${dayOfYear} ${y}`;
+  const frac = year - y;
+  const monthIndex = Math.min(11, Math.floor(frac * 12));
+  const yearLabel = y > 0 ? String(y).padStart(4, '0') : String(y);
+  const mm = String(monthIndex + 1).padStart(2, '0');
+  if (unitSpan >= 1 / 12) return `${yearLabel}-${mm}`;
+  const day = Math.round((frac - monthIndex / 12) * DAYS_IN_YEAR) + 1;
+  return `${yearLabel}-${mm}-${String(Math.min(day, 31)).padStart(2, '0')}`;
+}
+
+const ORDINALS = ['th', 'st', 'nd', 'rd'];
+
+function ordinal(n: number): string {
+  const mod = n % 100;
+  const suffix = (mod >= 11 && mod <= 13)
+    ? 'th' : ORDINALS[n % 10] ?? 'th';
+  return `${n}${suffix}`;
+}
+
+/**
+ * Precision-faithful rendering of a raw Wikidata time string — no float
+ * round trip, so day-precision values come out exactly as stored:
+ * p11 → "2009-11-13", p10 → "2009-11", p9 → "1952" / "44 BCE",
+ * p8 → "1950s", p7 → "19th century", p6 → "2nd millennium",
+ * coarser → Ga/Ma/ka via formatYear.
+ */
+export function formatDateValue(time: string, precision: number,
+                                calendarmodel?: string): string {
+  const match = TIME_RE.exec(time);
+  if (!match) return time;
+  const year = parseInt(match[1], 10);
+  if (precision >= 11) {
+    const yearLabel = year > 0 ? String(year).padStart(4, '0') : String(year);
+    let out = `${yearLabel}-${match[2]}-${match[3]}`;
+    if (precision >= 12) out += ` ${match[4]}:${match[5]}`;
+    return out;
+  }
+  if (precision === 10) {
+    const yearLabel = year > 0 ? String(year).padStart(4, '0') : String(year);
+    return `${yearLabel}-${match[2]}`;
+  }
+  if (precision === 9) return year <= 0 ? `${1 - year} BCE` : `${year}`;
+  const parsed = parseTimeValue(time, calendarmodel) ?? year;
+  const span = precisionSpanYears(precision);
+  const start = Math.floor(parsed / span) * span;
+  if (precision === 8) return `${start}s`;
+  if (precision === 7) {
+    return start >= 0 ? `${ordinal(start / 100 + 1)} century`
+      : `${ordinal(-(start + 100) / 100 + 1)} century BCE`;
+  }
+  if (precision === 6) {
+    return start >= 0 ? `${ordinal(start / 1000 + 1)} millennium`
+      : `${ordinal(-(start + 1000) / 1000 + 1)} millennium BCE`;
+  }
+  return formatYear(parsed, span);
 }

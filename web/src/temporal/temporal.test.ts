@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import {
-  parseTimeValue, precisionExtent, formatYear, JULIAN,
+  parseTimeValue, precisionExtent, formatYear, formatDateValue, JULIAN,
 } from './time.ts';
 import {
   DEFAULT_POLICY, withPriority, selectAnchor, secondaryEvents,
@@ -48,6 +48,26 @@ test('formatYear deep time and BCE', () => {
   assert.equal(formatYear(-65e6, 1e6), '-65 Ma');
   assert.equal(formatYear(-9999, 1), '10000 BCE');
   assert.equal(formatYear(1969, 1), '1969');
+});
+
+test('formatYear sub-year labels are ISO-style', () => {
+  const nov13 = parseTimeValue('+2009-11-13T00:00:00Z')!;
+  assert.equal(formatYear(nov13, 1 / 12), '2009-11');
+  assert.equal(formatYear(nov13, 1 / 365), '2009-11-13');
+  const jan31 = parseTimeValue('+2020-01-31T00:00:00Z')!;
+  assert.equal(formatYear(jan31, 1 / 365), '2020-01-31');
+});
+
+test('formatDateValue is precision-faithful', () => {
+  assert.equal(formatDateValue('+2009-11-13T00:00:00Z', 11), '2009-11-13');
+  assert.equal(formatDateValue('+2009-11-13T14:30:00Z', 12), '2009-11-13 14:30');
+  assert.equal(formatDateValue('+2009-11-00T00:00:00Z', 10), '2009-11');
+  assert.equal(formatDateValue('+1952-00-00T00:00:00Z', 9), '1952');
+  assert.equal(formatDateValue('-0043-00-00T00:00:00Z', 9), '44 BCE');
+  assert.equal(formatDateValue('+1954-00-00T00:00:00Z', 8), '1950s');
+  assert.equal(formatDateValue('+1877-00-00T00:00:00Z', 7), '19th century');
+  assert.equal(formatDateValue('-0450-00-00T00:00:00Z', 7), '5th century BCE');
+  assert.equal(formatDateValue('+1500-00-00T00:00:00Z', 6), '2nd millennium');
 });
 
 test('anchor policy: starts before others before ends', () => {

@@ -3,7 +3,7 @@
 export * from './types.ts';
 export {
   parseTimeValue, precisionSpanYears, precisionExtent, formatYear,
-  GREGORIAN, JULIAN,
+  formatDateValue, GREGORIAN, JULIAN,
 } from './time.ts';
 export {
   DEFAULT_POLICY, withPriority, selectAnchor, selectEndAnchor,
